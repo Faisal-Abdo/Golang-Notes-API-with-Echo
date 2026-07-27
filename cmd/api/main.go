@@ -1,11 +1,20 @@
 package main
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+)
 
 func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello from Rihal's API!"))
-	})
-	//Starting the HTTP server
+	http.HandleFunc("/notes", getNotes)
+
 	http.ListenAndServe(":8080", nil)
+}
+
+func getNotes(w http.ResponseWriter, r *http.Request) {
+	notes := []string{"Learn Go", "Build Notes API"}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(notes)
 }
