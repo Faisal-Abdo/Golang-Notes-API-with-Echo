@@ -33,6 +33,8 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 		getNoteByID(w, r)
 	case http.MethodPut:
 		updateNote(w, r)
+	case http.MethodDelete:
+		deleteNote(w, r)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -111,6 +113,28 @@ func updateNote(w http.ResponseWriter, r *http.Request) {
 
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(updatedNote)
+			return
+		}
+	}
+
+	http.Error(w, "Note not found", http.StatusNotFound)
+}
+
+func deleteNote(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid note ID", http.StatusBadRequest)
+		return
+	}
+
+	for i, note := range notes.Notes {
+		if note.ID == id {
+			// Rebuild the slice without the deleted note
+			notes.Notes = append(notes.Notes[:i], notes.Notes[i+1:]...)
+
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 	}
