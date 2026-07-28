@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"notes-api/internal/notes"
 )
 
 func main() {
@@ -17,9 +18,7 @@ func getNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	notes := []string{"Learn Go", "Build Notes API"}
-
 	w.Header().Set("Content-Type", "application/json")
 
-	json.NewEncoder(w).Encode(notes)
+	json.NewEncoder(w).Encode(notes.Notes)
 }
