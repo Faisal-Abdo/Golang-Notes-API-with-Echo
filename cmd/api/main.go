@@ -28,12 +28,14 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 
 // noteHandler handles requests for a specific note by ID.
 func noteHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		getNoteByID(w, r)
+	case http.MethodPut:
+		updateNote(w, r)
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
-
-	getNoteByID(w, r)
 }
 
 func getNotes(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +80,37 @@ func getNoteByID(w http.ResponseWriter, r *http.Request) {
 		if note.ID == id {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(note)
+			return
+		}
+	}
+
+	http.Error(w, "Note not found", http.StatusNotFound)
+}
+
+func updateNote(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid note ID", http.StatusBadRequest)
+		return
+	}
+
+	var updatedNote notes.Note
+
+	err = json.NewDecoder(r.Body).Decode(&updatedNote)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	for i, note := range notes.Notes {
+		if note.ID == id {
+			updatedNote.ID = id
+			notes.Notes[i] = updatedNote
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(updatedNote)
 			return
 		}
 	}
