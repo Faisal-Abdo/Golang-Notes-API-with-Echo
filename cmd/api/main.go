@@ -14,9 +14,12 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
-
-	http.HandleFunc("/notes", notes.NotesHandler)
-	http.HandleFunc("/notes/", notes.NoteHandler)
+	// Create a new instance of the notes service and handler
+	service := notes.NewService(db)
+	handler := notes.NewHandler(service)
+	// Register the handler functions for the routes
+	http.HandleFunc("/notes", handler.NotesHandler)
+	http.HandleFunc("/notes/", handler.NoteHandler)
 
 	http.ListenAndServe(":8080", nil)
 }
