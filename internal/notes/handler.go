@@ -7,44 +7,57 @@ import (
 	"strings"
 )
 
-func NotesHandler(w http.ResponseWriter, r *http.Request) {
+type Handler struct {
+	service *Service
+}
+
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
+}
+
+func (h *Handler) NotesHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		getNotes(w, r)
+		// Change the remaining CRUDs to use handlers as well
+		h.getNotes(w, r)
 	case http.MethodPost:
-		createNote(w, r)
+		h.createNote(w, r)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 // noteHandler handles requests for a specific note by ID.
-func NoteHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) NoteHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		getNoteByID(w, r)
+		h.getNoteByID(w, r)
 	case http.MethodPut:
-		updateNote(w, r)
+		h.updateNote(w, r)
 	case http.MethodDelete:
-		deleteNote(w, r)
+		h.deleteNote(w, r)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-func getNotes(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getNotes(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	notes := GetAllnotes()
+	notes, err := h.service.GetAllNotes()
+	if err != nil {
+		http.Error(w, "Failed to retrieve notes", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 
 	json.NewEncoder(w).Encode(notes)
 }
 
-func createNote(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createNote(w http.ResponseWriter, r *http.Request) {
 	var note Note
 
 	err := json.NewDecoder(r.Body).Decode(&note)
@@ -60,7 +73,7 @@ func createNote(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(note)
 }
 
-func getNoteByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getNoteByID(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
 
 	id, err := strconv.Atoi(idStr)
@@ -74,7 +87,7 @@ func getNoteByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(note)
 }
 
-func updateNote(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) updateNote(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
 
 	id, err := strconv.Atoi(idStr)
@@ -95,7 +108,7 @@ func updateNote(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updatedNote)
 }
 
-func deleteNote(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) deleteNote(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
 
 	id, err := strconv.Atoi(idStr)
