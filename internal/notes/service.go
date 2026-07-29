@@ -5,7 +5,7 @@ import (
 )
 
 func GetNoteByID(id int) (Note, error) {
-	for _, note := range Notes {
+	for _, note := range notes {
 		if note.ID == id {
 			return note, nil
 		}
@@ -14,10 +14,10 @@ func GetNoteByID(id int) (Note, error) {
 }
 
 func UpdateNoteByID(id int, updatedNote Note) (Note, error) {
-	for i, note := range Notes {
+	for i, note := range notes {
 		if note.ID == id {
 			updatedNote.ID = id
-			Notes[i] = updatedNote
+			notes[i] = updatedNote
 			return updatedNote, nil
 		}
 	}
@@ -25,9 +25,9 @@ func UpdateNoteByID(id int, updatedNote Note) (Note, error) {
 }
 
 func DeleteNoteByID(id int) error {
-	for i, note := range Notes {
+	for i, note := range notes {
 		if note.ID == id {
-			Notes = append(Notes[:i], Notes[i+1:]...)
+			notes = append(notes[:i], notes[i+1:]...)
 			return nil
 		}
 	}
@@ -35,11 +35,11 @@ func DeleteNoteByID(id int) error {
 }
 
 func CreateNote(note Note) Note {
-	note.ID = len(Notes) + 1
-	Notes = append(Notes, note)
+	note.ID = len(notes) + 1
+	notes = append(notes, note)
 	return note
 }
 
-func GetAllNotes() []Note {
-	return Notes
+func GetAllnotes() []Note {
+	return notes
 }

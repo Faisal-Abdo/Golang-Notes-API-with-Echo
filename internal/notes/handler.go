@@ -37,7 +37,7 @@ func getNotes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	notes := GetAllNotes()
+	notes := GetAllnotes()
 
 	w.Header().Set("Content-Type", "application/json")
 

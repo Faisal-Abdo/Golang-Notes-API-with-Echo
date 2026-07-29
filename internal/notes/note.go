@@ -6,7 +6,7 @@ type Note struct {
 	Content string `json:"content"`
 }
 
-var Notes = []Note{
+var notes = []Note{
 	{
 		ID:      1,
 		Title:   "Learn Go",
