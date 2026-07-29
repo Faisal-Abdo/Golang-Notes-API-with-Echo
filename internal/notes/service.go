@@ -1,8 +1,60 @@
 package notes
 
 import (
+	"database/sql"
 	"errors"
 )
+
+type Service struct {
+	db *sql.DB
+}
+
+// Constructor function to create a new Service instance
+func NewService(db *sql.DB) *Service {
+	return &Service{db: db}
+}
+
+// Go on and do the same for the other CRUD operations, using the Service struct to interact with the database.
+func (s *Service) GetAllNotes() ([]Note, error) {
+
+	query := `
+		SELECT id, title, content, created_at
+		FROM notes
+		ORDER BY id;
+	`
+	// Execute the query and retrieve the rows
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notes []Note
+	// Iterate through the rows and scan the data into Note structs
+	for rows.Next() {
+
+		var note Note
+		// Scan the data from the current row into the Note struct
+		err := rows.Scan(
+			&note.ID,
+			&note.Title,
+			&note.Content,
+			&note.CreatedAt,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		notes = append(notes, note)
+	}
+	// Check for any errors that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return notes, nil
+}
 
 func GetNoteByID(id int) (Note, error) {
 	for _, note := range notes {
@@ -38,8 +90,4 @@ func CreateNote(note Note) Note {
 	note.ID = len(notes) + 1
 	notes = append(notes, note)
 	return note
-}
-
-func GetAllnotes() []Note {
-	return notes
 }
