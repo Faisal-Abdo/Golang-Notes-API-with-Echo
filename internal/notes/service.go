@@ -32,7 +32,6 @@ func (s *Service) GetAllNotes() ([]Note, error) {
 	var notes []Note
 	// Iterate through the rows and scan the data into Note structs
 	for rows.Next() {
-
 		var note Note
 		// Scan the data from the current row into the Note struct
 		err := rows.Scan(
