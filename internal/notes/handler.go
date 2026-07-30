@@ -60,7 +60,12 @@ func (h *Handler) createNote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	note = CreateNote(note)
+
+	note, err = h.service.CreateNote(note)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -72,9 +77,14 @@ func (h *Handler) getNoteByID(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
 
 	id, err := strconv.Atoi(idStr)
-	note, err := GetNoteByID(id)
 	if err != nil {
 		http.Error(w, "Invalid note ID", http.StatusBadRequest)
+		return
+	}
+
+	note, err := h.service.GetNoteByID(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -99,7 +109,13 @@ func (h *Handler) updateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedNote, err = UpdateNoteByID(id, updatedNote)
+	updatedNote, err = h.service.UpdateNoteByID(id, updatedNote)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedNote)
 }
 
@@ -112,6 +128,11 @@ func (h *Handler) deleteNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note := DeleteNoteByID(id)
-	json.NewEncoder(w).Encode(note)
+	err = h.service.DeleteNoteByID(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -14,7 +14,6 @@ func NewService(db *sql.DB) *Service {
 	return &Service{db: db}
 }
 
-// Go on and do the same for the other CRUD operations, using the Service struct to interact with the database.
 func (s *Service) GetAllNotes() ([]Note, error) {
 
 	query := `
@@ -55,38 +54,91 @@ func (s *Service) GetAllNotes() ([]Note, error) {
 	return notes, nil
 }
 
-func GetNoteByID(id int) (Note, error) {
-	for _, note := range notes {
-		if note.ID == id {
-			return note, nil
-		}
+func (s *Service) GetNoteByID(id int) (Note, error) {
+	query := `
+		SELECT id, title, content, created_at
+		FROM notes
+		WHERE id = $1;
+	`
+
+	var note Note
+	err := s.db.QueryRow(query, id).Scan(
+		&note.ID,
+		&note.Title,
+		&note.Content,
+		&note.CreatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Note{}, errors.New("note not found")
 	}
-	return Note{}, errors.New("note not found")
+	if err != nil {
+		return Note{}, err
+	}
+
+	return note, nil
 }
 
-func UpdateNoteByID(id int, updatedNote Note) (Note, error) {
-	for i, note := range notes {
-		if note.ID == id {
-			updatedNote.ID = id
-			notes[i] = updatedNote
-			return updatedNote, nil
-		}
+func (s *Service) UpdateNoteByID(id int, updatedNote Note) (Note, error) {
+	query := `
+		UPDATE notes
+		SET title = $1, content = $2
+		WHERE id = $3
+		RETURNING id, title, content, created_at;
+	`
+
+	var note Note
+	err := s.db.QueryRow(query, updatedNote.Title, updatedNote.Content, id).Scan(
+		&note.ID,
+		&note.Title,
+		&note.Content,
+		&note.CreatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Note{}, errors.New("note not found")
 	}
-	return Note{}, errors.New("note not found")
+	if err != nil {
+		return Note{}, err
+	}
+
+	return note, nil
 }
 
-func DeleteNoteByID(id int) error {
-	for i, note := range notes {
-		if note.ID == id {
-			notes = append(notes[:i], notes[i+1:]...)
-			return nil
-		}
+func (s *Service) DeleteNoteByID(id int) error {
+	query := `DELETE FROM notes WHERE id = $1;`
+
+	result, err := s.db.Exec(query, id)
+	if err != nil {
+		return err
 	}
-	return errors.New("note not found")
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("note not found")
+	}
+
+	return nil
 }
 
-func CreateNote(note Note) Note {
-	note.ID = len(notes) + 1
-	notes = append(notes, note)
-	return note
+func (s *Service) CreateNote(note Note) (Note, error) {
+	query := `
+		INSERT INTO notes (title, content)
+		VALUES ($1, $2)
+		RETURNING id, title, content, created_at;
+	`
+
+	var created Note
+	err := s.db.QueryRow(query, note.Title, note.Content).Scan(
+		&created.ID,
+		&created.Title,
+		&created.Content,
+		&created.CreatedAt,
+	)
+	if err != nil {
+		return Note{}, err
+	}
+
+	return created, nil
 }
