@@ -28,7 +28,7 @@ func (s *Service) GetAllNotes() ([]Note, error) {
 	}
 	defer rows.Close()
 
-	var notes []Note
+	var notes = []Note{}
 	// Iterate through the rows and scan the data into Note structs
 	for rows.Next() {
 		var note Note

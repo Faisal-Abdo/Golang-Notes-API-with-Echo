@@ -15,10 +15,10 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+// notesHandler handles requests for the generic endpoints.
 func (h *Handler) NotesHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		// Change the remaining CRUDs to use handlers as well
 		h.getNotes(w, r)
 	case http.MethodPost:
 		h.createNote(w, r)
