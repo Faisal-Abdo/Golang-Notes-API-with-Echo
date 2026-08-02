@@ -1,73 +1,37 @@
 package notes
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"notes-api/internal/database"
 )
 
 type Service struct {
-	db *sql.DB
+	queries *database.Queries
 }
 
 // Constructor function to create a new Service instance
 func NewService(db *sql.DB) *Service {
-	return &Service{db: db}
+	return &Service{queries: database.New(db)}
 }
 
-func (s *Service) GetAllNotes() ([]Note, error) {
-
-	query := `
-		SELECT id, title, content, created_at
-		FROM notes
-		ORDER BY id;
-	`
-	// Execute the query and retrieve the rows
-	rows, err := s.db.Query(query)
+func (s *Service) GetAllNotes(ctx context.Context) ([]Note, error) {
+	dbNotes, err := s.queries.GetAllNotes(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var notes = []Note{}
-	// Iterate through the rows and scan the data into Note structs
-	for rows.Next() {
-		var note Note
-		// Scan the data from the current row into the Note struct
-		err := rows.Scan(
-			&note.ID,
-			&note.Title,
-			&note.Content,
-			&note.CreatedAt,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		notes = append(notes, note)
-	}
-	// Check for any errors that occurred during iteration
-	if err := rows.Err(); err != nil {
-		return nil, err
+	notes := make([]Note, len(dbNotes))
+	for i, dbNote := range dbNotes {
+		notes[i] = toNote(dbNote)
 	}
 
 	return notes, nil
 }
 
-func (s *Service) GetNoteByID(id int) (Note, error) {
-	query := `
-		SELECT id, title, content, created_at
-		FROM notes
-		WHERE id = $1;
-	`
-
-	var note Note
-	err := s.db.QueryRow(query, id).Scan(
-		&note.ID,
-		&note.Title,
-		&note.Content,
-		&note.CreatedAt,
-	)
+func (s *Service) GetNoteByID(ctx context.Context, id int) (Note, error) {
+	dbNote, err := s.queries.GetNoteByID(ctx, int32(id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Note{}, errors.New("note not found")
 	}
@@ -75,24 +39,15 @@ func (s *Service) GetNoteByID(id int) (Note, error) {
 		return Note{}, err
 	}
 
-	return note, nil
+	return toNote(dbNote), nil
 }
 
-func (s *Service) UpdateNoteByID(id int, updatedNote Note) (Note, error) {
-	query := `
-		UPDATE notes
-		SET title = $1, content = $2
-		WHERE id = $3
-		RETURNING id, title, content, created_at;
-	`
-
-	var note Note
-	err := s.db.QueryRow(query, updatedNote.Title, updatedNote.Content, id).Scan(
-		&note.ID,
-		&note.Title,
-		&note.Content,
-		&note.CreatedAt,
-	)
+func (s *Service) UpdateNoteByID(ctx context.Context, id int, updatedNote Note) (Note, error) {
+	dbNote, err := s.queries.UpdateNoteByID(ctx, database.UpdateNoteByIDParams{
+		Title:   updatedNote.Title,
+		Content: updatedNote.Content,
+		ID:      int32(id),
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return Note{}, errors.New("note not found")
 	}
@@ -100,18 +55,11 @@ func (s *Service) UpdateNoteByID(id int, updatedNote Note) (Note, error) {
 		return Note{}, err
 	}
 
-	return note, nil
+	return toNote(dbNote), nil
 }
 
-func (s *Service) DeleteNoteByID(id int) error {
-	query := `DELETE FROM notes WHERE id = $1;`
-
-	result, err := s.db.Exec(query, id)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
+func (s *Service) DeleteNoteByID(ctx context.Context, id int) error {
+	rowsAffected, err := s.queries.DeleteNoteByID(ctx, int32(id))
 	if err != nil {
 		return err
 	}
@@ -122,23 +70,23 @@ func (s *Service) DeleteNoteByID(id int) error {
 	return nil
 }
 
-func (s *Service) CreateNote(note Note) (Note, error) {
-	query := `
-		INSERT INTO notes (title, content)
-		VALUES ($1, $2)
-		RETURNING id, title, content, created_at;
-	`
-
-	var created Note
-	err := s.db.QueryRow(query, note.Title, note.Content).Scan(
-		&created.ID,
-		&created.Title,
-		&created.Content,
-		&created.CreatedAt,
-	)
+func (s *Service) CreateNote(ctx context.Context, note Note) (Note, error) {
+	dbNote, err := s.queries.CreateNote(ctx, database.CreateNoteParams{
+		Title:   note.Title,
+		Content: note.Content,
+	})
 	if err != nil {
 		return Note{}, err
 	}
 
-	return created, nil
+	return toNote(dbNote), nil
+}
+
+func toNote(dbNote database.Note) Note {
+	return Note{
+		ID:        int(dbNote.ID),
+		Title:     dbNote.Title,
+		Content:   dbNote.Content,
+		CreatedAt: dbNote.CreatedAt.Time,
+	}
 }
