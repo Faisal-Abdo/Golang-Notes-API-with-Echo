@@ -10,9 +10,13 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 func main() {
+	e := echo.New()
+
 	db, err := db.Open()
 	if err != nil {
 		panic(err)
@@ -26,7 +30,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: http.DefaultServeMux,
+		Handler: e, // Use the Echo instance as the HTTP handler
 	}
 
 	log.Println("Server running on :8080")
