@@ -25,8 +25,7 @@ func main() {
 	service := notes.NewService(db)
 	handler := notes.NewHandler(service)
 	// Register the handler functions for the routes
-	http.HandleFunc("/notes", handler.NotesHandler)
-	http.HandleFunc("/notes/", handler.NoteHandler)
+	handler.RegisterRoutes(e)
 
 	server := &http.Server{
 		Addr:    ":8080",
