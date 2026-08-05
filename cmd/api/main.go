@@ -11,12 +11,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/labstack/echo/v4/middleware"
+
 	"github.com/labstack/echo/v4"
 )
 
 func main() {
 	e := echo.New()
 
+	e.Use(middleware.RequestLogger())
+	e.Use(middleware.Recover())
 	db, err := db.Open()
 	if err != nil {
 		panic(err)
