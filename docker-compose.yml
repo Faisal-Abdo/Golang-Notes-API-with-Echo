@@ -19,5 +19,19 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  api:
+    build: .
+
+    container_name: go-notes-api
+
+    depends_on:
+      - postgres
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/notesdb?sslmode=disable
+
 volumes:
   postgres_data:
