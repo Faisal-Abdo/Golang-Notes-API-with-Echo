@@ -1,10 +1,10 @@
 package notes
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
+
+	"github.com/labstack/echo/v4"
 )
 
 type Handler struct {
@@ -15,124 +15,79 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// notesHandler handles requests for the generic endpoints.
-func (h *Handler) NotesHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		h.getNotes(w, r)
-	case http.MethodPost:
-		h.createNote(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
+func (h *Handler) RegisterRoutes(e *echo.Echo) {
+	e.GET("/notes", h.getNotes)
+	e.POST("/notes", h.createNote)
+	e.GET("/notes/:id", h.getNoteByID)
+	e.PUT("/notes/:id", h.updateNote)
+	e.DELETE("/notes/:id", h.deleteNote)
 }
 
-// noteHandler handles requests for a specific note by ID.
-func (h *Handler) NoteHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		h.getNoteByID(w, r)
-	case http.MethodPut:
-		h.updateNote(w, r)
-	case http.MethodDelete:
-		h.deleteNote(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-func (h *Handler) getNotes(w http.ResponseWriter, r *http.Request) {
-	notes, err := h.service.GetAllNotes(r.Context())
+func (h *Handler) getNotes(c echo.Context) error {
+	notes, err := h.service.GetAllNotes(c.Request().Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return c.String(http.StatusInternalServerError, err.Error())
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	json.NewEncoder(w).Encode(notes)
+	return c.JSON(http.StatusOK, notes)
 }
 
-func (h *Handler) createNote(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createNote(c echo.Context) error {
 	var note Note
 
-	err := json.NewDecoder(r.Body).Decode(&note)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+	if err := c.Bind(&note); err != nil {
+		return c.String(http.StatusBadRequest, "Invalid request body")
 	}
 
-	note, err = h.service.CreateNote(r.Context(), note)
+	note, err := h.service.CreateNote(c.Request().Context(), note)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return c.String(http.StatusInternalServerError, err.Error())
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	json.NewEncoder(w).Encode(note)
+	return c.JSON(http.StatusCreated, note)
 }
 
-func (h *Handler) getNoteByID(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
-
-	id, err := strconv.Atoi(idStr)
+func (h *Handler) getNoteByID(c echo.Context) error {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		http.Error(w, "Invalid note ID", http.StatusBadRequest)
-		return
+		return c.String(http.StatusBadRequest, "Invalid note ID")
 	}
 
-	note, err := h.service.GetNoteByID(r.Context(), id)
+	note, err := h.service.GetNoteByID(c.Request().Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
+		return c.String(http.StatusNotFound, err.Error())
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(note)
+	return c.JSON(http.StatusOK, note)
 }
 
-func (h *Handler) updateNote(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
-
-	id, err := strconv.Atoi(idStr)
+func (h *Handler) updateNote(c echo.Context) error {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		http.Error(w, "Invalid note ID", http.StatusBadRequest)
-		return
+		return c.String(http.StatusBadRequest, "Invalid note ID")
 	}
 
 	updatedNote := Note{}
-
-	err = json.NewDecoder(r.Body).Decode(&updatedNote)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+	if err := c.Bind(&updatedNote); err != nil {
+		return c.String(http.StatusBadRequest, "Invalid request body")
 	}
 
-	updatedNote, err = h.service.UpdateNoteByID(r.Context(), id, updatedNote)
+	updatedNote, err = h.service.UpdateNoteByID(c.Request().Context(), id, updatedNote)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
+		return c.String(http.StatusNotFound, err.Error())
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updatedNote)
+	return c.JSON(http.StatusOK, updatedNote)
 }
 
-func (h *Handler) deleteNote(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/notes/")
-
-	id, err := strconv.Atoi(idStr)
+func (h *Handler) deleteNote(c echo.Context) error {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		http.Error(w, "Invalid note ID", http.StatusBadRequest)
-		return
+		return c.String(http.StatusBadRequest, "Invalid note ID")
 	}
 
-	err = h.service.DeleteNoteByID(r.Context(), id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
+	if err := h.service.DeleteNoteByID(c.Request().Context(), id); err != nil {
+		return c.String(http.StatusNotFound, err.Error())
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return c.NoContent(http.StatusNoContent)
 }
