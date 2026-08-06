@@ -3,7 +3,9 @@ package auth
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
@@ -40,8 +42,32 @@ func NewAuthMiddleware() (*AuthMiddleware, error) {
 	return &AuthMiddleware{provider: provider, verifier: verifier}, nil
 }
 
+// TODO: fix the middleware to allow access to me once calling the api
 func (a *AuthMiddleware) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		authHeader := c.Request().Header.Get("Authorization")
+		if authHeader == "" {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header is missing")
+		}
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header must start with Bearer")
+		}
+		rawToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+		idToken, err := a.verifier.Verify(c.Request().Context(), rawToken)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid or expired token")
+		}
+		type Claims struct {
+			Subject           string `json:"sub"`
+			PreferredUsername string `json:"preferred_username"`
+		}
+		var claims Claims
+		if err := idToken.Claims(&claims); err != nil {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Failed to parse token claims")
+		}
+
+		c.Set("user", claims)
 
 		return next(c)
 	}
