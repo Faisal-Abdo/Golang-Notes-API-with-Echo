@@ -3,3 +3,12 @@ go.sum
 .claude/settings.json
 .gitignore
 go.mod
+go.mod
+.postman/resources.yaml
+postman/collections/Go Notes API/Create Note.request.yaml
+postman/collections/Go Notes API/Delete Note.request.yaml
+postman/collections/Go Notes API/Get All Notes.request.yaml
+postman/collections/Go Notes API/Get Note by ID.request.yaml
+postman/collections/Go Notes API/Update Note.request.yaml
+postman/collections/Go Notes API/.resources/definition.yaml
+postman/globals/workspace.globals.yaml
