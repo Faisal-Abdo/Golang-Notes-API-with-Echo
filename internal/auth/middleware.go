@@ -6,10 +6,12 @@ import (
 	"os"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/labstack/echo/v4"
 )
 
 type AuthMiddleware struct {
-	provider *oidc.Provider
+	provider *oidc.Provider        // OIDC provider for Keycloak
+	verifier *oidc.IDTokenVerifier // Verifier for validating JWT tokens
 }
 
 func NewAuthMiddleware() (*AuthMiddleware, error) {
@@ -23,10 +25,24 @@ func NewAuthMiddleware() (*AuthMiddleware, error) {
 	}
 
 	ctx := context.Background()
-	provider, err := oidc.NewProvider(ctx, keycloakURL+"/realms/"+realm)
+
+	issuerURL := fmt.Sprintf("%s/realms/%s", keycloakURL, realm)
+	provider, err := oidc.NewProvider(ctx, issuerURL)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create oidc provider: %w", err)
 	}
 
-	return &AuthMiddleware{provider: provider}, nil
+	verifier := provider.Verifier(&oidc.Config{
+		ClientID: os.Getenv("KEYCLOAK_CLIENT_ID"),
+	})
+
+	return &AuthMiddleware{provider: provider, verifier: verifier}, nil
+}
+
+func (a *AuthMiddleware) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+
+		return next(c)
+	}
 }
