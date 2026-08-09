@@ -37,12 +37,15 @@ func NewAuthMiddleware() (*AuthMiddleware, error) {
 
 	verifier := provider.Verifier(&oidc.Config{
 		ClientID: os.Getenv("KEYCLOAK_CLIENT_ID"),
+		// Keycloak access tokens set aud to "account" by default, not the
+		// client ID, so the default audience check would always fail here.
+		// The client is validated via the azp claim instead, below.
+		SkipClientIDCheck: true,
 	})
 
 	return &AuthMiddleware{provider: provider, verifier: verifier}, nil
 }
 
-// TODO: fix the middleware to allow access to me once calling the api
 func (a *AuthMiddleware) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authHeader := c.Request().Header.Get("Authorization")
@@ -58,17 +61,15 @@ func (a *AuthMiddleware) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 		if err != nil {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid or expired token")
 		}
-		type Claims struct {
-			Subject           string `json:"sub"`
-			PreferredUsername string `json:"preferred_username"`
-		}
 		var claims Claims
+
 		if err := idToken.Claims(&claims); err != nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Failed to parse token claims")
+			return echo.NewHTTPError(
+				http.StatusUnauthorized,
+				"invalid token claims",
+			)
 		}
-
 		c.Set("user", claims)
-
 		return next(c)
 	}
 }
