@@ -2,9 +2,9 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -16,16 +16,7 @@ type AuthMiddleware struct {
 	verifier *oidc.IDTokenVerifier // Verifier for validating JWT tokens
 }
 
-func NewAuthMiddleware() (*AuthMiddleware, error) {
-	keycloakURL := os.Getenv("KEYCLOAK_URL")
-	if keycloakURL == "" {
-		return nil, fmt.Errorf("KEYCLOAK_URL environment variable is not set")
-	}
-	realm := os.Getenv("KEYCLOAK_REALM")
-	if realm == "" {
-		return nil, fmt.Errorf("KEYCLOAK_REALM environment variable is not set")
-	}
-
+func NewAuthMiddleware(keycloakURL, realm, clientID string) (*AuthMiddleware, error) {
 	ctx := context.Background()
 
 	issuerURL := fmt.Sprintf("%s/realms/%s", keycloakURL, realm)
@@ -36,26 +27,36 @@ func NewAuthMiddleware() (*AuthMiddleware, error) {
 	}
 
 	verifier := provider.Verifier(&oidc.Config{
-		ClientID: os.Getenv("KEYCLOAK_CLIENT_ID"),
-		// Keycloak access tokens set aud to "account" by default, not the
-		// client ID, so the default audience check would always fail here.
-		// The client is validated via the azp claim instead, below.
+		ClientID: clientID,
+		// Keycloak sets aud to "account" by default, not the client ID, so the
+		// default audience check would always fail here.
 		SkipClientIDCheck: true,
 	})
 
 	return &AuthMiddleware{provider: provider, verifier: verifier}, nil
 }
 
+func extractBearerToken(authHeader string) (string, error) {
+	if authHeader == "" {
+		return "", errors.New("authorization header is missing")
+	}
+	const prefix = "Bearer "
+	if !strings.HasPrefix(authHeader, prefix) {
+		return "", errors.New("authorization header must start with Bearer")
+	}
+	token := strings.TrimPrefix(authHeader, prefix)
+	if token == "" {
+		return "", errors.New("bearer token is empty")
+	}
+	return token, nil
+}
+
 func (a *AuthMiddleware) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		authHeader := c.Request().Header.Get("Authorization")
-		if authHeader == "" {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header is missing")
+		rawToken, err := extractBearerToken(c.Request().Header.Get("Authorization"))
+		if err != nil {
+			return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
 		}
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header must start with Bearer")
-		}
-		rawToken := strings.TrimPrefix(authHeader, "Bearer ")
 
 		idToken, err := a.verifier.Verify(c.Request().Context(), rawToken)
 		if err != nil {

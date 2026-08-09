@@ -4,17 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func Open() (*sql.DB, error) {
-
-	connString := os.Getenv("DATABASE_URL")
-	if connString == "" {
-		return nil, fmt.Errorf("DATABASE_URL environment variable is not set")
-	}
+func Open(connString string) (*sql.DB, error) {
 	// Open a connection to the PostgreSQL database using the pgx driver
 	db, err := sql.Open("pgx", connString)
 	if err != nil {

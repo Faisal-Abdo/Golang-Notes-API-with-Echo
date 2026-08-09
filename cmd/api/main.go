@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"notes-api/internal/auth"
+	"notes-api/internal/config"
 	"notes-api/internal/db"
 	"notes-api/internal/notes"
 	"os"
@@ -11,24 +13,39 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/labstack/echo/v4/middleware"
-
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
-	e := echo.New()
+	// Only a local-dev convenience; in Docker, env vars come from the environment
+	// directly, so a missing .env here is not fatal.
+	if err := godotenv.Load(); err != nil {
+		log.Println("no .env file found, using existing environment variables")
+	}
 
-	e.Use(middleware.RequestLogger())
-	e.Use(middleware.Recover())
-	db, err := db.Open()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dbConn, err := db.Open(cfg.DatabaseURL)
 	if err != nil {
 		panic(err)
 	}
-	// Create a new instance of the notes service and handler
-	service := notes.NewService(db)
-	handler := notes.NewHandler(service)
-	// Register the handler functions for the routes
+
+	authMiddleware, err := auth.NewAuthMiddleware(cfg.KeycloakURL, cfg.KeycloakRealm, cfg.KeycloakClientID)
+	if err != nil {
+		panic(err)
+	}
+
+	e := echo.New()
+	e.Use(middleware.RequestLogger())
+	e.Use(middleware.Recover())
+
+	service := notes.NewService(dbConn)
+	handler := notes.NewHandler(service, authMiddleware)
 	handler.RegisterRoutes(e)
 
 	server := &http.Server{
@@ -65,7 +82,7 @@ func main() {
 		log.Printf("Server shutdown error: %v", err)
 	}
 
-	err = db.Close()
+	err = dbConn.Close()
 	if err != nil {
 		log.Println(err)
 	}
