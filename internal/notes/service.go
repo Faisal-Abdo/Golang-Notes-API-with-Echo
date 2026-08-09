@@ -7,11 +7,12 @@ import (
 	"notes-api/internal/database"
 )
 
+var ErrNotFound = errors.New("note not found")
+
 type Service struct {
 	queries *database.Queries
 }
 
-// Constructor function to create a new Service instance
 func NewService(db *sql.DB) *Service {
 	return &Service{queries: database.New(db)}
 }
@@ -33,7 +34,7 @@ func (s *Service) GetAllNotes(ctx context.Context) ([]Note, error) {
 func (s *Service) GetNoteByID(ctx context.Context, id int) (Note, error) {
 	dbNote, err := s.queries.GetNoteByID(ctx, int32(id))
 	if errors.Is(err, sql.ErrNoRows) {
-		return Note{}, errors.New("note not found")
+		return Note{}, ErrNotFound
 	}
 	if err != nil {
 		return Note{}, err
@@ -49,7 +50,7 @@ func (s *Service) UpdateNoteByID(ctx context.Context, id int, updatedNote Note) 
 		ID:      int32(id),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return Note{}, errors.New("note not found")
+		return Note{}, ErrNotFound
 	}
 	if err != nil {
 		return Note{}, err
@@ -64,7 +65,7 @@ func (s *Service) DeleteNoteByID(ctx context.Context, id int) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return errors.New("note not found")
+		return ErrNotFound
 	}
 
 	return nil
