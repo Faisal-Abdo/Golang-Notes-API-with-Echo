@@ -7,15 +7,20 @@ import (
 )
 
 func RequireRole(role string) echo.MiddlewareFunc {
-
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-
 		return func(c echo.Context) error {
 
-			claims := c.Get("user").(Claims)
+			claims, ok := c.Get("user").(Claims)
+			if !ok {
+				return c.JSON(
+					http.StatusUnauthorized,
+					map[string]string{
+						"message": "authentication required",
+					},
+				)
+			}
 
 			for _, userRole := range claims.RealmAccess.Roles {
-
 				if userRole == role {
 					return next(c)
 				}
