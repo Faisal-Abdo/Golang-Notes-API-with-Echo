@@ -30,6 +30,11 @@ services:
 
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/notesdb?sslmode=disable
+      # Must match the host:port clients use to obtain tokens, or issuer
+      # validation fails - see README for the supported dev workflow.
+      KEYCLOAK_URL: http://host.docker.internal:8081
+      KEYCLOAK_REALM: notes-realm
+      KEYCLOAK_CLIENT_ID: notes-api
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
@@ -45,5 +50,9 @@ services:
 
     command: start-dev
 
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+
 volumes:
   postgres_data:
+  keycloak_data:
